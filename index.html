@@ -3,361 +3,212 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Daily Budget Trajectory</title>
+    <title>Daily Spend Budget</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <main class="app-shell">
-      <section class="currency-bar card" aria-label="Currency settings">
+      <section class="hero card">
+        <div class="hero-copy">
+          <p class="eyebrow">Local-first budget planner</p>
+          <h1>Know exactly what you can spend today.</h1>
+          <p>
+            Enter monthly income, recurring fixed bills, and daily spending. The app keeps a live daily spendable
+            amount, flags overspending, forecasts future balances, and stores everything locally in this browser.
+          </p>
+        </div>
+        <aside class="daily-card" aria-live="polite">
+          <span>Spendable today</span>
+          <strong id="todaySpendable">0 kr.</strong>
+          <p id="todayStatus">Add income and bills to calculate today's safe amount</p>
+        </aside>
+      </section>
+
+      <section class="currency-card card" aria-label="Currency conversion">
         <div>
-          <strong>Input currency</strong>
-          <p>Choose whether amounts you type are DKK or EUR. Saved values are converted automatically.</p>
+          <h2>Currency</h2>
+          <p>Convert between DKK and EUR with a daily oracle/reference rate. Values are stored internally in DKK.</p>
         </div>
         <label>
-          Currency
+          Display/input currency
           <select id="currencySelect">
             <option value="DKK">DKK</option>
             <option value="EUR">EUR</option>
           </select>
         </label>
-        <div class="rate-panel">
-          <span id="rateValue">Loading EUR/DKK rate...</span>
-          <small id="rateStatus">Fetching latest daily reference rate.</small>
+        <div class="rate-box">
+          <strong id="rateValue">EUR/DKK: 7.46</strong>
+          <span id="rateStatus">Using fallback until the daily price oracle responds.</span>
         </div>
       </section>
 
-      <section class="hero card">
-        <div>
-          <p class="eyebrow">Local-first budgeting</p>
-          <h1>Plan the whole year, then track each day.</h1>
-          <p class="hero-copy">
-            Build a DKK or EUR budget with itemized bills, daily spending check-ins, a full-year forecast,
-            and category actuals so future predictions improve as you enter real spending.
-          </p>
-        </div>
-        <div class="today-panel" aria-live="polite">
-          <span>Today's spendable amount</span>
-          <strong id="dailyAllowance">0,00 kr.</strong>
-          <small id="safeToSpendNote">Add your numbers to see a recommendation.</small>
-        </div>
-      </section>
-
-      <nav class="tab-bar" aria-label="Budget sections">
-        <button class="tab-button active" type="button" data-tab="overview">Overview</button>
-        <button class="tab-button" type="button" data-tab="bills">Bills</button>
-        <button class="tab-button" type="button" data-tab="spending">Spending</button>
-        <button class="tab-button" type="button" data-tab="forecast">Forecast</button>
-        <button class="tab-button" type="button" data-tab="actuals">Actuals</button>
-        <button class="tab-button" type="button" data-tab="checkpoints">Checkpoints</button>
+      <nav class="tab-bar" aria-label="Budget tabs" role="tablist">
+        <button class="tab-button active" type="button" data-tab="overview" role="tab" aria-selected="true">Overview</button>
+        <button class="tab-button" type="button" data-tab="bills" role="tab" aria-selected="false">Bills</button>
+        <button class="tab-button" type="button" data-tab="spending" role="tab" aria-selected="false">Spending</button>
+        <button class="tab-button" type="button" data-tab="forecast" role="tab" aria-selected="false">Forecast</button>
       </nav>
 
-      <section class="tab-panel active" data-tab-panel="overview">
-        <section class="dashboard-grid">
-        <form class="card budget-form" id="budgetForm">
-          <div class="section-heading">
-            <h2>Your plan</h2>
-            <button class="ghost-button" type="button" id="resetButton">Reset plan</button>
+      <section class="tab-panel active" data-tab-panel="overview" role="tabpanel">
+        <div class="overview-grid">
+          <form class="card form-card" id="planForm">
+            <div class="section-heading">
+              <div>
+                <h2>Monthly plan</h2>
+                <p>These numbers drive your daily spendable amount.</p>
+              </div>
+              <button class="ghost-button" type="button" id="resetButton">Reset all</button>
+            </div>
+            <label>
+              <span>Current total balance <b class="currency-label">DKK</b><button class="tooltip" type="button" aria-label="Current total balance help" title="Your total balance right now. Forecasts start from this amount, then add monthly salary/income and subtract bills plus projected spending.">?</button></span>
+              <input id="currentBalance" type="number" min="0" step="0.01" inputmode="decimal" placeholder="18000" />
+            </label>
+            <label>
+              <span>Monthly salary / income for selected month <b class="currency-label">DKK</b><button class="tooltip" type="button" aria-label="Monthly income help" title="Your expected take-home salary or income for the selected overview month. Months without a custom value use your current-month value as the default.">?</button></span>
+              <input id="monthlyIncome" type="number" min="0" step="0.01" inputmode="decimal" placeholder="32000" />
+            </label>
+            <label>
+              <span>Savings goal for selected month <b class="currency-label">DKK</b><button class="tooltip" type="button" aria-label="Savings goal help" title="The amount you want to reserve for the selected overview month before calculating daily spendable money. Overview daily budget = (selected month income - applicable bills - selected month savings goal) / days in month.">?</button></span>
+              <input id="savingsGoal" type="number" min="0" step="0.01" inputmode="decimal" placeholder="3000" />
+            </label>
+          </form>
+
+          <section class="card insight-card">
+            <div class="section-heading month-heading-row">
+              <div>
+                <h2 id="monthHeading">This month</h2>
+                <p id="monthSubheading">Live calculation for the selected month.</p>
+              </div>
+              <div class="month-switcher" aria-label="Overview month selector">
+                <button class="icon-button" type="button" id="previousMonthButton" aria-label="Previous month">‹</button>
+                <label>Viewing month<input id="overviewMonth" type="month" /></label>
+                <button class="icon-button" type="button" id="nextMonthButton" aria-label="Next month">›</button>
+              </div>
+            </div>
+            <div class="metric-grid">
+              <article title="Recurring bills plus one-off bills assigned to the selected overview month. This total is subtracted from monthly income before daily budget is calculated.">
+                <span>Monthly fixed bills <button class="tooltip" type="button" aria-label="Monthly fixed bills help" title="Recurring bills plus one-off bills assigned to the selected overview month. This total is subtracted from monthly income before daily budget is calculated.">?</button></span>
+                <strong id="fixedBillsTotal">0 kr.</strong>
+              </article>
+              <article title="The sum of all spending entries dated inside the selected overview month, including zero-spend days as 0.">
+                <span>Total spent this month <button class="tooltip" type="button" aria-label="Monthly spending help" title="The sum of all spending entries dated inside the selected overview month, including zero-spend days as 0.">?</button></span>
+                <strong id="monthSpent">0 kr.</strong>
+              </article>
+              <article title="Monthly baseline: (selected month income - selected month bills - selected month savings goal) divided by the number of days in the selected month.">
+                <span>Base daily budget <button class="tooltip" type="button" aria-label="Base daily budget help" title="Monthly baseline: (selected month income - selected month bills - selected month savings goal) divided by the number of days in the selected month.">?</button></span>
+                <strong id="baseDailyBudget">0 kr.</strong>
+              </article>
+              <article title="For current/future months: (selected month income - selected month bills - selected month savings goal - spending already entered for that month) divided by remaining days in that month. Past months show Completed.">
+                <span>Adjusted daily amount left <button class="tooltip" type="button" aria-label="Adjusted daily amount help" title="For current/future months: (selected month income - selected month bills - selected month savings goal - spending already entered for that month) divided by remaining days in that month. Past months show Completed.">?</button></span>
+                <strong id="adjustedDailyBudget">0 kr.</strong>
+              </article>
+            </div>
+            <div id="overviewCallout" class="callout">Your day-by-day spending updates the remaining daily amount immediately.</div>
+          </section>
+        </div>
+      </section>
+
+      <section class="tab-panel card" data-tab-panel="bills" role="tabpanel" hidden>
+        <div class="section-heading">
+          <div>
+            <h2>Bills and fixed costs</h2>
+            <p>Add recurring monthly bills or one-off bills assigned to a specific month.</p>
           </div>
-
-          <label>
-            Budget year
-            <input id="budgetYear" type="number" min="2020" max="2100" step="1" />
-          </label>
-
-          <label>
-            <span class="label-row">Current balance <span class="currency-badge currency-label">DKK</span></span>
-            <input id="startingBalance" type="number" min="0" step="0.01" inputmode="decimal" />
-          </label>
-
-          <label>
-            <span class="label-row">Monthly take-home income <span class="currency-badge currency-label">DKK</span></span>
-            <input id="monthlyIncome" type="number" min="0" step="0.01" inputmode="decimal" />
-          </label>
-
-          <label>
-            <span class="label-row">Calculated fixed bills <span class="currency-badge currency-label">DKK</span></span>
-            <input id="monthlyBills" type="number" readonly />
-          </label>
-
-          <label>
-            <span class="label-row">Savings goal each month <span class="currency-badge currency-label">DKK</span></span>
-            <input id="savingsGoal" type="number" min="0" step="0.01" inputmode="decimal" />
-          </label>
-
-          <label>
-            <span class="label-row">Planned daily variable spending <span class="currency-badge currency-label">DKK</span></span>
-            <input id="dailySpending" type="number" min="0" step="0.01" inputmode="decimal" />
-          </label>
-
-          <label>
-            Projection window
-            <select id="projectionDays">
-              <option value="14">14 days</option>
-              <option value="30">30 days</option>
-              <option value="60">60 days</option>
-              <option value="90">90 days</option>
-            </select>
-          </label>
-
-          <p class="privacy-note">Everything is saved in this browser on this computer. No account or internet required.</p>
+          <div class="inline-total">Total: <strong id="billTotal">0 kr.</strong></div>
+        </div>
+        <form class="inline-form bills-form" id="billForm">
+          <label>Bill name<input id="billName" type="text" placeholder="Rent" /></label>
+          <label><span>Amount <b class="currency-label">DKK</b></span><input id="billAmount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="12000" /></label>
+          <label>Applies to<select id="billTiming"><option value="recurring">Every month</option><option value="one-off">One-off month</option></select></label>
+          <label id="billMonthLabel">One-off month<input id="billMonth" type="month" /></label>
+          <button class="primary-button" type="submit">Add bill</button>
         </form>
+        <section class="bill-subsection">
+          <div class="subsection-heading compact-heading">
+            <div>
+              <h3>Monthly recurring bills</h3>
+              <p>These happen every month and are included in every overview and forecast month.</p>
+            </div>
+          </div>
+          <p id="recurringBillEmpty" class="empty-state">No recurring bills added yet.</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Bill</th><th>Amount</th><th>Applies to</th><th>Action</th></tr></thead>
+              <tbody id="recurringBillTable"></tbody>
+            </table>
+          </div>
+        </section>
 
-        <section class="card insights" aria-label="Budget insights">
-          <div class="section-heading">
-            <h2>Snapshot</h2>
-            <span id="monthLabel"></span>
+        <section class="bill-subsection">
+          <div class="subsection-heading compact-heading">
+            <div>
+              <h3>One-off bills — don't always happen</h3>
+              <p>These are assigned to a single month and only affect that month.</p>
+            </div>
           </div>
-          <div class="metric-grid">
-            <article>
-              <span>After bills + forecasts + savings</span>
-              <strong id="flexMoney">0,00 kr.</strong>
-            </article>
-            <article>
-              <span>Daily target</span>
-              <strong id="dailyTarget">0,00 kr.</strong>
-            </article>
-            <article>
-              <span>Over / under target</span>
-              <strong id="variance">0,00 kr.</strong>
-            </article>
-            <article>
-              <span>Projected ending balance</span>
-              <strong id="endingBalance">0,00 kr.</strong>
-            </article>
-            <article>
-              <span>Latest spending vs target</span>
-              <strong id="spendingVariance">Add spending</strong>
-            </article>
+          <p id="oneOffBillEmpty" class="empty-state">No one-off bills added yet.</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Bill</th><th>Amount</th><th>Applies to</th><th>Action</th></tr></thead>
+              <tbody id="oneOffBillTable"></tbody>
+            </table>
           </div>
-          <div class="status-callout" id="statusCallout"></div>
         </section>
       </section>
-      </section>
 
-      <section class="card bills-card tab-panel" data-tab-panel="bills" hidden>
-        <div class="section-heading">
+      <section class="tab-panel card" data-tab-panel="spending" role="tabpanel" hidden>
+        <div class="section-heading month-heading-row">
           <div>
-            <h2>Monthly bills and fixed costs</h2>
-            <p>Add bills one by one. Set them as recurring every month or only for a specific month.</p>
+            <h2>Daily spending</h2>
+            <p>Each entry affects your spendable amount and shows whether that specific day is over or under budget.</p>
           </div>
-          <div class="inline-total">Fixed total: <strong id="billTotal">0,00 kr.</strong></div>
-        </div>
-        <form class="inline-form" id="billForm">
-          <label>
-            Bill name
-            <input id="billName" type="text" placeholder="Rent, insurance, phone..." />
-          </label>
-          <label>
-            <span class="label-row">Amount <span class="currency-badge currency-label">DKK</span></span>
-            <input id="billAmount" type="number" min="0" step="0.01" inputmode="decimal" />
-          </label>
-          <label>
-            Applies to
-            <select id="billMonth">
-              <option value="all">Every month</option>
-            </select>
-          </label>
-          <button class="primary-button" type="submit">Add bill</button>
-          <button class="ghost-button" type="button" id="clearBillsButton">Clear bills</button>
-        </form>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Amount</th>
-                <th>Month</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="billTable"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <section class="card spending-card tab-panel" data-tab-panel="spending" hidden>
-        <div class="section-heading">
-          <div>
-            <h2>Daily spending check-in</h2>
-            <p>Add how much you spent each day to compare it with your daily target.</p>
+          <div class="month-switcher" aria-label="Spending month selector">
+            <button class="icon-button" type="button" id="previousSpendingMonthButton" aria-label="Previous spending month">‹</button>
+            <label>Spending month<input id="spendingMonth" type="month" /></label>
+            <button class="icon-button" type="button" id="nextSpendingMonthButton" aria-label="Next spending month">›</button>
           </div>
-          <button class="ghost-button" type="button" id="clearSpendingButton">Clear spending</button>
+          <button class="ghost-button" type="button" id="clearSpendingButton">Clear month</button>
         </div>
         <form class="inline-form" id="spendingForm">
-          <label>
-            Date
-            <input id="spendingDate" type="date" />
-          </label>
-          <label>
-            <span class="label-row">Amount spent <span class="currency-badge currency-label">DKK</span></span>
-            <input id="dailySpent" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Example: 250" />
-          </label>
-          <button class="primary-button" type="submit">Add spending</button>
+          <label>Date<input id="spendingDate" type="date" /></label>
+          <label><span>Spent <b class="currency-label">DKK</b></span><input id="spendingAmount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0" /></label>
+          <label>Note<input id="spendingNote" type="text" placeholder="Groceries, coffee, train..." /></label>
+          <div class="form-actions">
+            <button class="primary-button" type="submit" id="spendingSubmitButton">Add spending</button>
+            <button class="ghost-button compact" type="button" id="cancelEditButton" hidden>Cancel</button>
+          </div>
         </form>
-        <p class="privacy-note" id="spendingEmpty">No spending entered yet. Add today's amount spent to see if you are under or over target.</p>
+        <div class="spend-focus">
+          <article><span>Daily budget for selected month</span><strong id="todayBudget">0 kr.</strong></article>
+          <article><span>Total spent this month</span><strong id="spendingMonthTotal">0 kr.</strong></article>
+          <article><span>Month spendable left</span><strong id="monthSpendableLeft">0 kr.</strong></article>
+        </div>
+        <p class="empty-state">Tip: enter 0 to mark an empty/no-spend day so the day is still tracked.</p>
+        <p id="spendingEmpty" class="empty-state">No spending entries for this month yet.</p>
         <div class="table-wrap">
           <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Amount spent</th>
-                <th>Daily target</th>
-                <th>Under / over</th>
-                <th>Projected balance impact</th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
+            <thead><tr><th>Date</th><th>Note</th><th>Spent</th><th>Daily budget</th><th>Under / over</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody id="spendingTable"></tbody>
           </table>
         </div>
       </section>
 
-      <section class="card forecast-card tab-panel" data-tab-panel="forecast" hidden>
+      <section class="tab-panel card" data-tab-panel="forecast" role="tabpanel" hidden>
         <div class="section-heading">
           <div>
-            <h2>Year budget forecast</h2>
-            <p id="predictionNote">Predictions update as you save actual spending for forecast categories.</p>
+            <h2>Total balance trajectory</h2>
+            <p>Forecasts the total balance you will have saved at the end of each month after salary, fixed bills, savings goals, and projected spending.</p>
           </div>
+          <label class="compact-label">Months ahead<select id="forecastMonths"><option>3</option><option selected>6</option><option>9</option><option>12</option></select></label>
         </div>
-        <div class="metric-grid yearly-grid">
-          <article><span>Predicted income</span><strong id="yearlyIncome">0,00 kr.</strong></article>
-          <article><span>Predicted bills</span><strong id="yearlyBills">0,00 kr.</strong></article>
-          <article><span>Predicted spending</span><strong id="yearlyPredictedSpending">0,00 kr.</strong></article>
-          <article><span>Predicted year-end balance</span><strong id="yearlyEndingBalance">0,00 kr.</strong></article>
+        <div class="metric-grid forecast-summary">
+          <article><span>Average daily spending pace</span><strong id="averageDailySpend">0 kr.</strong></article>
+          <article><span>Where you end up</span><strong id="forecastEndingBalance">0 kr.</strong></article>
         </div>
         <div class="table-wrap">
           <table>
-            <thead>
-              <tr>
-                <th>Month</th>
-                <th>Predicted income</th>
-                <th>Predicted bills</th>
-                <th>Forecasted categories</th>
-                <th>Predicted spending</th>
-                <th>Predicted net</th>
-                <th>Predicted ending balance</th>
-              </tr>
-            </thead>
-            <tbody id="yearForecastTable"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <section class="card comparison-card tab-panel" data-tab-panel="actuals" hidden>
-        <div class="section-heading">
-          <div>
-            <h2>Forecast vs actual spending</h2>
-            <p>Create forecast categories, then save what you actually spent for each category and month.</p>
-          </div>
-          <button class="ghost-button" type="button" id="clearMonthlyActualsButton">Clear actual spending</button>
-        </div>
-
-        <div class="subsection-heading">
-          <div>
-            <h3>Forecasted monthly categories</h3>
-            <p>Use these for flexible categories that build up during the month, like groceries, transport, travel, or entertainment. They are included in forecasts and can be compared with actual spending later.</p>
-          </div>
-          <div class="inline-total-stack">
-            <div class="inline-total">Forecasted categories: <strong id="forecastItemTotal">0,00 kr.</strong></div>
-            <div class="inline-total">Expected accrued by today: <strong id="forecastItemAccrued">0,00 kr.</strong></div>
-          </div>
-        </div>
-        <form class="inline-form" id="forecastItemForm">
-          <label>
-            Category
-            <input id="forecastItemName" type="text" placeholder="Groceries, transport, travel..." />
-          </label>
-          <label>
-            <span class="label-row">Forecasted monthly amount <span class="currency-badge currency-label">DKK</span></span>
-            <input id="forecastItemAmount" type="number" min="0" step="0.01" inputmode="decimal" />
-          </label>
-          <label>
-            Applies to
-            <select id="forecastItemMonth">
-              <option value="all">Every month</option>
-            </select>
-          </label>
-          <button class="primary-button" type="submit">Add forecast</button>
-          <button class="ghost-button" type="button" id="clearForecastItemsButton">Clear forecasts</button>
-        </form>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Category</th>
-                <th>Forecasted amount</th>
-                <th>Month</th>
-                <th>Expected by today</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="forecastItemTable"></tbody>
-          </table>
-        </div>
-
-        <div class="subsection-heading actual-entry-heading">
-          <div>
-            <h3>Actually spent items</h3>
-            <p>Choose one of your forecasted categories and enter the real amount spent for that month.</p>
-          </div>
-        </div>
-        <form class="inline-form actual-form" id="actualMonthlyForm">
-          <label>Month<input id="actualMonth" type="month" /></label>
-          <label>Forecast category<select id="actualForecastItem"></select></label>
-          <label><span class="label-row">Actually spent <span class="currency-badge currency-label">DKK</span></span><input id="actualForecastSpent" type="number" min="0" step="0.01" inputmode="decimal" /></label>
-          <button class="primary-button" type="submit">Save actual spend</button>
-        </form>
-        <p class="privacy-note" id="monthlyComparisonEmpty">No forecast categories or actual item spending saved yet.</p>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Month</th>
-                <th>Category</th>
-                <th>Forecasted amount</th>
-                <th>Expected by today</th>
-                <th>Actually spent</th>
-                <th>Variance</th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="monthlyComparisonTable"></tbody>
-          </table>
-        </div>
-
-        <section class="card chart-card">
-          <div class="section-heading">
-            <div>
-              <h2>Actuals dot plot</h2>
-              <p>Highcharts comparison of expected daily balance versus actual performance from spending check-ins.</p>
-            </div>
-            <div class="legend-group">
-              <div class="legend"><span></span> expected balance</div>
-              <div class="legend actual"><span></span> actual performance dots</div>
-            </div>
-          </div>
-          <div id="trajectoryChart" class="trajectory-chart" role="img" aria-label="Highcharts dot plot comparing expected and actual daily balance"></div>
-        </section>
-      </section>
-
-      <section class="card schedule-card tab-panel" data-tab-panel="checkpoints" hidden>
-        <div class="section-heading">
-          <h2>Upcoming checkpoints</h2>
-          <p>Use this to see when your plan gets tight.</p>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Projected balance</th>
-                <th>Daily spend plan</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody id="projectionTable"></tbody>
+            <thead><tr><th>Month</th><th>Opening balance</th><th>Salary / income</th><th>Bills</th><th>Savings goal</th><th>Projected spending</th><th>Saved this month</th><th>Ending total balance</th></tr></thead>
+            <tbody id="forecastTable"></tbody>
           </table>
         </div>
       </section>
